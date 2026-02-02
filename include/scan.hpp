@@ -11,4 +11,4 @@ std::expected<details::scan_result<Ts...>, details::scan_error> scan(std::string
     return std::unexpected(details::scan_error{"Dumb implementation"});
 }
 
-} // namespace stdx
+}  // namespace stdx
