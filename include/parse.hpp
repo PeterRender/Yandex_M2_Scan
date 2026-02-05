@@ -1,5 +1,6 @@
 #pragma once
 
+#include <charconv>  // для подключения std::from_chars
 #include <expected>
 #include <string>
 #include <string_view>
@@ -10,28 +11,92 @@
 
 namespace stdx::details {
 
-// здесь ваш код
+// === Семейство шаблонных функций parse_value, конвертирующих подстроки входных данных в конкретные типы
+
+// Базовая шаблонная функция parse_value (не определена - вызовет ошибку компиляции для неподдерживаемых типов)
+template <typename T>
+std::expected<T, scan_error> parse_value(std::string_view input);
+
+// Специализация шаблонной функции parse_value для типов std::string и std::string_view
+template <typename T>
+    requires StringType<T>
+std::expected<T, scan_error> parse_value(std::string_view input) {
+    return T(input);  // автоматически работает для string и string_view
+}
+
+// Специализация шаблонной функции parse_value для всех целочисленных типов
+template <typename T>
+    requires(IntType<T> || UIntType<T>)
+std::expected<T, scan_error> parse_value(std::string_view input) {
+    // Создаем переменную типа T и инициализируем ее нулем
+    T value{};
+
+    // Пытаемся распарсить строку в число
+    // (ptr - указатель на первый необработанный символ, input.data() + input.size() - указатель на конец строки)
+    auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), value, 10);
+
+    // Лямбда для создания ошибок (принцип DRY)
+    auto make_error = [](const char *msg) { return std::unexpected(scan_error{msg}); };
+
+    // Обрабатываем код результата парсинга
+    switch (ec) {
+    // Успешный парсинг (ошибок нет)
+    case std::errc{}: {
+        // Проверяем, обработан ли весь ввод (если есть лишние символы после цифр, то ошибка)
+        return (ptr == input.data() + input.size()) ? std::expected<T, scan_error>(value)
+                                                    : make_error("Extra characters after number");
+    }
+    // Строка не является числом (ошибка)
+    case std::errc::invalid_argument: {
+        return make_error("Invalid integer argument");
+    }
+    // Число не помещается в тип (ошибка)
+    case std::errc::result_out_of_range: {
+        return make_error("Integer out of range");
+    }
+    // Нераспознанный код (ошибка)
+    default: {
+        return make_error("Failed to parse integer");
+    }
+    }
+}
 
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    // Проверяем на этапе компиляции валидность типа T
+    // Проверяем валидность типа T (на этапе компиляции)
     if constexpr (!ValidType<T>) {
-        // Возвращаем ошибку, если типа T нет в списке разрешенных типов
-        return std::unexpected(scan_error{"Invalid type"});
+        return std::unexpected(scan_error{"Invalid type"});  // ошибка, если тип T не валиден
     }
 
-    // Обработка строки
+    // Проверяем спецификаторы форматов для валидных типов
+    // Этот блок попадает в бинарник только для строкового типа
     if constexpr (StringType<T>) {
-        // Проверяем спецификатор
-        if (fmt != "" && fmt != "%s") {
+        if (fmt != "" && fmt != "%s") {  // если спецификатор формата не "" и не "%s", то возвращаем ошибку
             return std::unexpected(scan_error{"Invalid format specifier for string type"});
         }
-        return T(input);  // создаем строку из входных данных
+    }
+    // Этот блок попадает в бинарник только для целочисленного типа
+    else if constexpr (IntType<T>) {
+        if (fmt != "" && fmt != "%d") {  // если спецификатор формата не "" и не "%d", то возвращаем ошибку
+            return std::unexpected(scan_error{"Invalid format specifier for integer type"});
+        }
+    }
+    // Этот блок попадает в бинарник только для беззнакового целочисленного типа
+    else if constexpr (UIntType<T>) {
+        if (fmt != "" && fmt != "%u") {  // если спецификатор формата не "" и не "%u", то возвращаем ошибку
+            return std::unexpected(scan_error{"Invalid format specifier for unsigned integer type"});
+        }
+    }
+    // Этот блок попадает в бинарник только для вещественного типа
+    else if constexpr (RealType<T>) {
+        if (fmt != "" && fmt != "%f") {  // если спецификатор формата не "" и не "%f", то возвращаем ошибку
+            return std::unexpected(scan_error{"Invalid format specifier for floating type"});
+        }
     }
 
-    // Для остальных типов (int, float и т.д.) парсинг пока не реализован - возвращаем временную ошибку
-    return std::unexpected(scan_error{"Parsing for this type is not implemented"});
+    // Вызываем соответствующую специализацию шаблонной функции parse_value
+    return parse_value<T>(input);
 }
 
 // Функция для проверки корректности входных данных и выделения из обеих строк интересующих данных для парсинга

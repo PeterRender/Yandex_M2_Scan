@@ -11,7 +11,7 @@ namespace stdx::details {
 struct scan_error {
     std::string message_;
     // компилятор сам сгенерирует конструктор по умолчанию.
-    // значение message будем задавать с помощью агрегатной инициализации.
+    // значение message_ будем задавать с помощью агрегатной инициализации.
 };
 
 // Шаблонный класс для хранения результатов успешного сканирования
@@ -31,46 +31,42 @@ public:
 // === Концепты для ограничения набора допустимых типов, с которыми может работать функция scan ===
 
 // Концепт для строковых типов
-template<typename T>
-concept StringType = 
-    std::same_as<std::remove_cv_t<T>, std::string> ||
-    std::same_as<std::remove_cv_t<T>, std::string_view>;
+template <typename T>
+concept StringType =
+    std::same_as<std::remove_cv_t<T>, std::string> || std::same_as<std::remove_cv_t<T>, std::string_view>;
 
 // Концепт для целочисленных типов
-template<typename T>
-concept IntegerType =
-    std::same_as<std::remove_cv_t<T>, int8_t> ||
-    std::same_as<std::remove_cv_t<T>, int16_t> ||
-    std::same_as<std::remove_cv_t<T>, int32_t> ||
-    std::same_as<std::remove_cv_t<T>, int64_t> ||
-    std::same_as<std::remove_cv_t<T>, uint8_t> ||
-    std::same_as<std::remove_cv_t<T>, uint16_t> ||
-    std::same_as<std::remove_cv_t<T>, uint32_t> ||
-    std::same_as<std::remove_cv_t<T>, uint64_t>;
+template <typename T>
+concept IntType = std::same_as<std::remove_cv_t<T>, int8_t> || std::same_as<std::remove_cv_t<T>, int16_t> ||
+                  std::same_as<std::remove_cv_t<T>, int32_t> || std::same_as<std::remove_cv_t<T>, int64_t>;
 
-// Концепт для вещественных типов
-template<typename T>
-concept RealType =
-    std::same_as<std::remove_cv_t<T>, float> ||
-    std::same_as<std::remove_cv_t<T>, double>;
+// Концепт для беззнаковых целочисленных типов (натуральных чисел)
+template <typename T>
+concept UIntType = std::same_as<std::remove_cv_t<T>, uint8_t> || std::same_as<std::remove_cv_t<T>, uint16_t> ||
+                   std::same_as<std::remove_cv_t<T>, uint32_t> || std::same_as<std::remove_cv_t<T>, uint64_t>;
+
+// Концепт для вещественных типов (чисел с плавающей точкой)
+template <typename T>
+concept RealType = std::same_as<std::remove_cv_t<T>, float> || std::same_as<std::remove_cv_t<T>, double>;
 
 // Общий концепт для валидных типов
-template<typename T>
-concept ValidType = StringType<T> || IntegerType<T> || RealType<T>;
+template <typename T>
+concept ValidType = StringType<T> || IntType<T> || UIntType<T> || RealType<T>;
 
 // Концепт-помощник для проверки всех типов в пакете
-template<typename... Ts>
-concept AllValidTypes = (ValidType<Ts> && ...); // раскрываем пакет с помощью унарной правой свертки
+template <typename... Ts>
+concept AllValidTypes = (ValidType<Ts> && ...);  // раскрываем пакет с помощью унарной правой свертки
 
 }  // namespace stdx::details
 
-// === Псведонимы концептов для видимости в пространстве имен stdx ====
+// Делаем концепты видимыми в пространстве имен stdx
 namespace stdx {
 
-using details::StringType;
-using details::IntegerType;
-using details::RealType;
-using details::ValidType;
 using details::AllValidTypes;
+using details::IntType;
+using details::RealType;
+using details::StringType;
+using details::UIntType;
+using details::ValidType;
 
-} // namespace stdx
+}  // namespace stdx
