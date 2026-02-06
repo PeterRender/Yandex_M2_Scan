@@ -11,29 +11,21 @@
 
 namespace stdx::details {
 
-// === Семейство шаблонных функций parse_value, конвертирующих подстроки входных данных в конкретные типы
-
-// Базовая шаблонная функция parse_value (не определена - вызовет ошибку компиляции для неподдерживаемых типов)
-template <typename T>
-std::expected<T, scan_error> parse_value(std::string_view input);
-
-// Специализация шаблонной функции parse_value для типов std::string и std::string_view
-template <typename T>
-    requires StringType<T>
-std::expected<T, scan_error> parse_value(std::string_view input) {
-    return T(input);  // автоматически работает для string и string_view
-}
-
-// Специализация шаблонной функции parse_value для всех целочисленных типов
-template <typename T>
-    requires(IntType<T> || UIntType<T>)
-std::expected<T, scan_error> parse_value(std::string_view input) {
+// Общая шаблонная функция парсинга чисел (целых и вещественных)
+template <typename T, typename... Args>
+std::expected<T, scan_error> parse_number_impl(std::string_view input, Args &&...args) {
     // Создаем переменную типа T и инициализируем ее нулем
     T value{};
 
     // Пытаемся распарсить строку в число
-    // (ptr - указатель на первый необработанный символ, input.data() + input.size() - указатель на конец строки)
-    auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), value, 10);
+    auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), value, std::forward<Args>(args)...);
+    // Примечания:
+    // а) ptr - указатель на первый необработанный символ, input.data() + input.size() - указатель на конец строки)
+    // б) используем пакет доп. параметров Args, т.к. функция парсинга std::from_chars имеет разные сигнатуры для
+    // целых и вещественных чисел:
+    // - для целых: from_chars(..., int& value, int base = 10)
+    // - для вещественных: from_chars(..., float& value, chars_format fmt = general)
+    // в) используем std::forward для идеальной передачи доп. параметров
 
     // Лямбда для создания ошибок (принцип DRY)
     auto make_error = [](const char *msg) { return std::unexpected(scan_error{msg}); };
@@ -48,17 +40,46 @@ std::expected<T, scan_error> parse_value(std::string_view input) {
     }
     // Строка не является числом (ошибка)
     case std::errc::invalid_argument: {
-        return make_error("Invalid integer argument");
+        return make_error("Invalid numeric argument");
     }
     // Число не помещается в тип (ошибка)
     case std::errc::result_out_of_range: {
-        return make_error("Integer out of range");
+        return make_error("Numeric value out of range");
     }
-    // Нераспознанный код (ошибка)
+    // Нераспознанный код результата (ошибка)
     default: {
-        return make_error("Failed to parse integer");
+        return make_error("Failed to parse number");
     }
     }
+}
+
+// ===== Семейство шаблонных функций parse_value, конвертирующих подстроки входных данных в конкретные типы =====
+
+// Базовая шаблонная функция parse_value (не определена - вызовет ошибку компиляции для неподдерживаемых типов)
+template <typename T>
+std::expected<T, scan_error> parse_value(std::string_view input);
+
+// Специализация шаблонной функции parse_value для типов std::string и std::string_view
+template <typename T>
+    requires StringType<T>
+std::expected<T, scan_error> parse_value(std::string_view input) {
+    return T(input);  // автоматически работает для string и string_view
+}
+
+// Специализация шаблонной функции parse_value для целых чисел (знаковых и беззнаковых)
+template <typename T>
+    requires(IntType<T> || UIntType<T>)
+std::expected<T, scan_error> parse_value(std::string_view input) {
+    // Для целых чисел передаeм основание системы счисления (10 - десятичная)
+    return parse_number_impl<T>(input, 10);
+}
+
+// Специализация шаблонной функции parse_value для вещественных чисел (float и double)
+template <typename T>
+    requires(FloatType<T> || DoubleType<T>)
+std::expected<T, scan_error> parse_value(std::string_view input) {
+    // Для вещественных чисел передаём формат (general - общий формат)
+    return parse_number_impl<T>(input, std::chars_format::general);
 }
 
 // Функция для парсинга значения с учетом спецификатора формата
@@ -70,26 +91,19 @@ std::expected<T, scan_error> parse_value_with_format(std::string_view input, std
     }
 
     // Проверяем спецификаторы форматов для валидных типов
-    // Этот блок попадает в бинарник только для строкового типа
-    if constexpr (StringType<T>) {
+    if constexpr (StringType<T>) {       // этот блок попадает в бинарник только для строкового типа
         if (fmt != "" && fmt != "%s") {  // если спецификатор формата не "" и не "%s", то возвращаем ошибку
             return std::unexpected(scan_error{"Invalid format specifier for string type"});
         }
-    }
-    // Этот блок попадает в бинарник только для целочисленного типа
-    else if constexpr (IntType<T>) {
+    } else if constexpr (IntType<T>) {   // этот блок попадает в бинарник только для знакового целочисленного типа
         if (fmt != "" && fmt != "%d") {  // если спецификатор формата не "" и не "%d", то возвращаем ошибку
             return std::unexpected(scan_error{"Invalid format specifier for integer type"});
         }
-    }
-    // Этот блок попадает в бинарник только для беззнакового целочисленного типа
-    else if constexpr (UIntType<T>) {
+    } else if constexpr (UIntType<T>) {  // этот блок попадает в бинарник только для беззнакового целочисленного типа
         if (fmt != "" && fmt != "%u") {  // если спецификатор формата не "" и не "%u", то возвращаем ошибку
             return std::unexpected(scan_error{"Invalid format specifier for unsigned integer type"});
         }
-    }
-    // Этот блок попадает в бинарник только для вещественного типа
-    else if constexpr (RealType<T>) {
+    } else if constexpr (FloatType<T> || DoubleType<T>) {  // этот блок попадает в бинарник только для float и double
         if (fmt != "" && fmt != "%f") {  // если спецификатор формата не "" и не "%f", то возвращаем ошибку
             return std::unexpected(scan_error{"Invalid format specifier for floating type"});
         }

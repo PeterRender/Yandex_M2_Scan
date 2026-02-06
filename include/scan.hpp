@@ -5,6 +5,15 @@
 
 namespace stdx {
 
+// Делаем концепты видимыми в пространстве имен stdx
+using details::AllValidTypes;
+using details::DoubleType;
+using details::FloatType;
+using details::IntType;
+using details::StringType;
+using details::UIntType;
+using details::ValidType;
+
 // Функция извлечения типобезопасных значений из строки по формату
 template <typename... Ts>
     requires AllValidTypes<Ts...>  // проверяем на этапе компиляции валидность всех типов в пакете

@@ -45,28 +45,20 @@ template <typename T>
 concept UIntType = std::same_as<std::remove_cv_t<T>, uint8_t> || std::same_as<std::remove_cv_t<T>, uint16_t> ||
                    std::same_as<std::remove_cv_t<T>, uint32_t> || std::same_as<std::remove_cv_t<T>, uint64_t>;
 
-// Концепт для вещественных типов (чисел с плавающей точкой)
+// Концепт для вещественного типа float (с одинарной точностью)
 template <typename T>
-concept RealType = std::same_as<std::remove_cv_t<T>, float> || std::same_as<std::remove_cv_t<T>, double>;
+concept FloatType = std::same_as<std::remove_cv_t<T>, float>;
+
+// Концепт для вещественного типа double (с двойной точностью)
+template <typename T>
+concept DoubleType = std::same_as<std::remove_cv_t<T>, double>;
 
 // Общий концепт для валидных типов
 template <typename T>
-concept ValidType = StringType<T> || IntType<T> || UIntType<T> || RealType<T>;
+concept ValidType = StringType<T> || IntType<T> || UIntType<T> || FloatType<T> || DoubleType<T>;
 
 // Концепт-помощник для проверки всех типов в пакете
 template <typename... Ts>
 concept AllValidTypes = (ValidType<Ts> && ...);  // раскрываем пакет с помощью унарной правой свертки
 
 }  // namespace stdx::details
-
-// Делаем концепты видимыми в пространстве имен stdx
-namespace stdx {
-
-using details::AllValidTypes;
-using details::IntType;
-using details::RealType;
-using details::StringType;
-using details::UIntType;
-using details::ValidType;
-
-}  // namespace stdx
