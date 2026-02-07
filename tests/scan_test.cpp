@@ -6,35 +6,35 @@
 
 // Тест сканирования корректного случая "одна строка, один пустой спецификатор"
 TEST(ScanTest, ValidSingleString) {
-    auto result = stdx::scan<std::string>("Hello", "{}");
+    auto result = stdx::scan<std::string>("Yandex", "{}");
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(std::get<0>(result.value().values()), "Hello");
+    EXPECT_EQ(std::get<0>(result.value().values()), "Yandex");
 }
 
 // Тест сканирования корректного случая "одна строка, один спецификатор %s"
 TEST(ScanTest, ValidSingleStringAndSpecifier) {
-    auto result = stdx::scan<std::string>("Hello", "{%s}");
+    auto result = stdx::scan<std::string>("Yandex", "{%s}");
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(std::get<0>(result.value().values()), "Hello");
+    EXPECT_EQ(std::get<0>(result.value().values()), "Yandex");
 }
 
 // Тест сканирования корректного случая "одна строка в контексте, один пустой спецификатор"
 TEST(ScanTest, ValidStringWithContext) {
-    auto result = stdx::scan<std::string>("Phrase: Hello", "Phrase: {}");
+    auto result = stdx::scan<std::string>("Company: Yandex", "Company: {}");
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(std::get<0>(result.value().values()), "Hello");
+    EXPECT_EQ(std::get<0>(result.value().values()), "Yandex");
 }
 
 // Тест сканирования некорректного случая "одна строка, неправильный спецификатор"
 TEST(ScanTest, InvalidStringSpecifier) {
-    auto result = stdx::scan<std::string>("Hello", "{%d}");
+    auto result = stdx::scan<std::string>("Yandex", "{%d}");
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error().message_, "Invalid format specifier for string type");
 }
 
 // Тест сканирования некорректного случая "2 плейсхолдера, 1 тип"
 TEST(ScanTest, InvalidTypesNumber) {
-    auto result = stdx::scan<std::string>("Hello Goodbye", "{} {}");
+    auto result = stdx::scan<std::string>("Yandex Practicum", "{} {}");
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error().message_, "Numbers of format specifiers and types are not equal");
 }
@@ -125,36 +125,80 @@ TEST(ScanTest, InvalidNumberArguments) {
     };
 
     // Тесты случая "строка вместо числа"
-    test_err.operator()<int8_t>("abc", "{%d}", "Invalid numeric argument");
-    test_err.operator()<int16_t>("abc", "{%d}", "Invalid numeric argument");
-    test_err.operator()<int32_t>("abc", "{%d}", "Invalid numeric argument");
-    test_err.operator()<int64_t>("abc", "{%d}", "Invalid numeric argument");
-    test_err.operator()<uint8_t>("abc", "{%u}", "Invalid numeric argument");
-    test_err.operator()<uint16_t>("abc", "{%u}", "Invalid numeric argument");
-    test_err.operator()<uint32_t>("abc", "{%u}", "Invalid numeric argument");
-    test_err.operator()<uint64_t>("abc", "{%u}", "Invalid numeric argument");
-    test_err.operator()<float>("abc", "{%f}", "Invalid numeric argument");
-    test_err.operator()<double>("abc", "{%f}", "Invalid numeric argument");
+    const std::string expected_err1("Invalid numeric argument");  // ожидаемая ошибка
+    test_err.operator()<int8_t>("abc", "{%d}", expected_err1);
+    test_err.operator()<int16_t>("abc", "{%d}", expected_err1);
+    test_err.operator()<int32_t>("abc", "{%d}", expected_err1);
+    test_err.operator()<int64_t>("abc", "{%d}", expected_err1);
+    test_err.operator()<uint8_t>("abc", "{%u}", expected_err1);
+    test_err.operator()<uint16_t>("abc", "{%u}", expected_err1);
+    test_err.operator()<uint32_t>("abc", "{%u}", expected_err1);
+    test_err.operator()<uint64_t>("abc", "{%u}", expected_err1);
+    test_err.operator()<float>("abc", "{%f}", expected_err1);
+    test_err.operator()<double>("abc", "{%f}", expected_err1);
 
     // Тесты случая "лишние символы после числа"
-    test_err.operator()<int8_t>("123abc", "{%d}", "Extra characters after number");
-    test_err.operator()<int16_t>("123abc", "{%d}", "Extra characters after number");
-    test_err.operator()<int32_t>("123abc", "{%d}", "Extra characters after number");
-    test_err.operator()<int64_t>("123abc", "{%d}", "Extra characters after number");
-    test_err.operator()<uint8_t>("123abc", "{%u}", "Extra characters after number");
-    test_err.operator()<uint16_t>("123abc", "{%u}", "Extra characters after number");
-    test_err.operator()<uint32_t>("123abc", "{%u}", "Extra characters after number");
-    test_err.operator()<uint64_t>("123abc", "{%u}", "Extra characters after number");
-    test_err.operator()<float>("1.234abc", "{%f}", "Extra characters after number");
-    test_err.operator()<double>("1.234abc", "{%f}", "Extra characters after number");
+    const std::string expected_err2("Extra characters after number");  // ожидаемая ошибка
+    test_err.operator()<int8_t>("123abc", "{%d}", expected_err2);
+    test_err.operator()<int16_t>("123abc", "{%d}", expected_err2);
+    test_err.operator()<int32_t>("123abc", "{%d}", expected_err2);
+    test_err.operator()<int64_t>("123abc", "{%d}", expected_err2);
+    test_err.operator()<uint8_t>("123abc", "{%u}", expected_err2);
+    test_err.operator()<uint16_t>("123abc", "{%u}", expected_err2);
+    test_err.operator()<uint32_t>("123abc", "{%u}", expected_err2);
+    test_err.operator()<uint64_t>("123abc", "{%u}", expected_err2);
+    test_err.operator()<float>("1.23abc", "{%f}", expected_err2);
+    test_err.operator()<double>("1.23abc", "{%f}", expected_err2);
 
     // Тесты случая "число выходит за границы диапазона типа" (для целых чисел)
-    test_err.operator()<int8_t>("128", "{%d}", "Numeric value out of range");
-    test_err.operator()<int16_t>("32768", "{%d}", "Numeric value out of range");
-    test_err.operator()<int32_t>("2147483648", "{%d}", "Numeric value out of range");
-    test_err.operator()<int64_t>("9223372036854775808", "{%d}", "Numeric value out of range");
-    test_err.operator()<uint8_t>("256", "{%u}", "Numeric value out of range");
-    test_err.operator()<uint8_t>("65536", "{%u}", "Numeric value out of range");
-    test_err.operator()<uint8_t>("4294967296", "{%u}", "Numeric value out of range");
-    test_err.operator()<uint8_t>("18446744073709551616", "{%u}", "Numeric value out of range");
+    const std::string expected_err3("Numeric value out of range");  // ожидаемая ошибка
+    test_err.operator()<int8_t>("128", "{%d}", expected_err3);
+    test_err.operator()<int16_t>("32768", "{%d}", expected_err3);
+    test_err.operator()<int32_t>("2147483648", "{%d}", expected_err3);
+    test_err.operator()<int64_t>("9223372036854775808", "{%d}", expected_err3);
+    test_err.operator()<uint8_t>("256", "{%u}", expected_err3);
+    test_err.operator()<uint8_t>("65536", "{%u}", expected_err3);
+    test_err.operator()<uint8_t>("4294967296", "{%u}", expected_err3);
+    test_err.operator()<uint8_t>("18446744073709551616", "{%u}", expected_err3);
+}
+
+// Тест сканирования нескольких валидных аргументов различных типов
+TEST(ScanTest, MultipleValidArguments) {
+    // Тест 1: целое число и float в контексте (со спецификатором и без)
+    auto result1 =
+        stdx::scan<int8_t, float>("I want to sum 42 and 3.14 numbers.", "I want to sum {} and {%f} numbers.");
+    ASSERT_TRUE(result1.has_value());
+    EXPECT_EQ(std::get<0>(result1.value().values()), 42);
+    EXPECT_FLOAT_EQ(std::get<1>(result1.value().values()), 3.14f);
+
+    // Тест 2: строка и целое число в контексте (без спецификаторов)
+    auto result2 = stdx::scan<std::string, int32_t>("Company: Yandex, Year: 2026", "Company: {}, Year: {}");
+    ASSERT_TRUE(result2.has_value());
+    EXPECT_EQ(std::get<0>(result2.value().values()), "Yandex");
+    EXPECT_EQ(std::get<1>(result2.value().values()), 2026);
+
+    // Тест 3: строка, беззнаковое целое число и double в контексте (без спецификаторов)
+    auto result3 = stdx::scan<std::string, uint32_t, double>("Company: Yandex, Year: 2026, Pi: 3.1415926535",
+                                                             "Company: {}, Year: {}, Pi: {}");
+    ASSERT_TRUE(result3.has_value());
+    EXPECT_EQ(std::get<0>(result3.value().values()), "Yandex");
+    EXPECT_EQ(std::get<1>(result3.value().values()), 2026);
+    EXPECT_DOUBLE_EQ(std::get<2>(result3.value().values()), 3.1415926535);
+
+    // Тест 4: строка, беззнаковое целое число и double в контексте (со спецификаторами)
+    auto result4 = stdx::scan<std::string, uint32_t, double>("Company: Yandex, Year: 2026, Pi: 3.1415926535",
+                                                             "Company: {%s}, Year: {%u}, Pi: {%f}");
+    ASSERT_TRUE(result4.has_value());
+    EXPECT_EQ(std::get<0>(result4.value().values()), "Yandex");
+    EXPECT_EQ(std::get<1>(result4.value().values()), 2026);
+    EXPECT_DOUBLE_EQ(std::get<2>(result4.value().values()), 3.1415926535);
+}
+
+// Тест короткосхемности парсинга аргументов
+TEST(ScanTest, ShortCircuitParsing) {
+    // Если второй аргумент парсится с ошибкой, то третий не должен парситься
+    auto result = stdx::scan<int8_t, int8_t, int8_t>("Numbers: 123, abc, 456", "Numbers: {}, {}, {}");
+    ASSERT_FALSE(result.has_value());
+    // Ошибка должна быть от второго аргумента (неверный тип), а не от третьего (выход за границы диапазона)
+    EXPECT_EQ(result.error().message_, "Invalid numeric argument");
 }
