@@ -202,3 +202,26 @@ TEST(ScanTest, ShortCircuitParsing) {
     // Ошибка должна быть от второго аргумента (неверный тип), а не от третьего (выход за границы диапазона)
     EXPECT_EQ(result.error().message_, "Invalid numeric argument");
 }
+
+// Тест сканирования cv-квалифицированных типов
+TEST(ScanTest, ValidCVTypes) {
+    // Тест с const типами std::string и uint32_t
+    auto result1 = stdx::scan<const std::string, const uint32_t>("Yandex 2026", "{} {}");
+    ASSERT_TRUE(result1.has_value());
+    EXPECT_EQ(std::get<0>(result1.value().values()), "Yandex");
+    EXPECT_EQ(std::get<1>(result1.value().values()), 2026);
+
+    // Тест с std::string и volatile double
+    auto result2 =
+        stdx::scan<std::string, volatile double>("Constant: Pi, Value: 3.1415926535", "Constant: {}, Value: {}");
+    ASSERT_TRUE(result2.has_value());
+    EXPECT_EQ(std::get<0>(result2.value().values()), "Pi");
+    EXPECT_DOUBLE_EQ(std::get<1>(result2.value().values()), 3.1415926535);
+
+    // Тест с std::string и const volatile float (со спецификаторами формата)
+    auto result3 =
+        stdx::scan<std::string, const volatile float>("Constant: Pi, Value: 3.14", "Constant: {%s}, Value: {%f}");
+    ASSERT_TRUE(result3.has_value());
+    EXPECT_EQ(std::get<0>(result3.value().values()), "Pi");
+    EXPECT_FLOAT_EQ(std::get<1>(result3.value().values()), 3.14f);
+}

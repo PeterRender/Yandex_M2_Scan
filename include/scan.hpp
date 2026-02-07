@@ -43,16 +43,16 @@ std::expected<details::scan_result<Ts...>, details::scan_error> scan(std::string
     // (лямбда принимает на вход последовательность индексов подстрок, созданную выше)
     return [&]<size_t... Idseq>(
                std::index_sequence<Idseq...>) -> std::expected<details::scan_result<Ts...>, details::scan_error> {
-        // Создаем кортеж для хранения результатов парсинга (например, std::tuple<std::string, float, int>)
-        std::tuple<Ts...> parsed_values;
+        // Создаем кортеж для хранения результатов парсинга (со снятыми CV-квалификаторами типов)
+        details::CVFreeTuple<Ts...> parsed_values;
 
         // Опциональная переменная для хранения первой ошибки парсинга (пустая, если ошибки нет)
         std::optional<details::scan_error> first_error;
 
         // Шаблонная лямбда для парсинга I-ой подстроки входной строки (I - целочисленный шаблонный параметр)
         auto parse_part = [&]<size_t I> -> bool {
-            // Получаем тип для текущего индекса из пакета
-            using ScanType = std::tuple_element_t<I, std::tuple<Ts...>>;
+            // Получаем тип для текущего индекса из пакета (со снятыми CV-квалификаторами типов)
+            using ScanType = std::tuple_element_t<I, details::CVFreeTuple<Ts...>>;
 
             // Парсим подстроку с учетом значения специфиактора формата
             auto result = details::parse_value_with_format<ScanType>(input_parts[I], format_parts[I]);

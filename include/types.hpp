@@ -7,6 +7,10 @@
 
 namespace stdx::details {
 
+// Вспомогательный псевдоним кортежа типов без CV-квалификаторов
+template <typename... Ts>
+using CVFreeTuple = std::tuple<std::remove_cv_t<Ts>...>;
+
 // Класс для хранения ошибки неуспешного сканирования
 struct scan_error {
     std::string message_;
@@ -18,17 +22,22 @@ struct scan_error {
 template <typename... Ts>
 class scan_result {
 private:
-    std::tuple<Ts...> vals_;
+    // std::tuple<Ts...> vals_;
+    CVFreeTuple<Ts...> vals_;  // храним типы без CV-квалификаторов
 
 public:
-    // Явный параметризованный конструктор (для создания результатов сканирования)
-    explicit scan_result(std::tuple<Ts...> vals) : vals_(std::move(vals)) {}
+    // Явный параметризованный конструктор для создания результатов сканирования
+    // (при создании снимаем CV-квалификаторы с типов)
+    explicit scan_result(CVFreeTuple<Ts...> vals) : vals_(std::move(vals)) {}
 
     // Метод доступа к результатам сканирования
-    const std::tuple<Ts...> &values() const { return vals_; }
+    // (возвращаем значения без CV-квалификаторов типов, т.к. пользователю важны сами значения, а не их константность
+    const CVFreeTuple<Ts...> &values() const { return vals_; }
 };
 
 // === Концепты для ограничения набора допустимых типов, с которыми может работать функция scan ===
+// Примечание: для снятия const/volatile у типов используется std::remove_cv_t, а не std::remove_cvref_t, т.к. ТЗ
+// проекта явно запрещает ссылочные типы, а remove_cvref_t убирает и ссылки, что позволило бы им пройти проверку.
 
 // Концепт для строковых типов
 template <typename T>

@@ -114,7 +114,9 @@ std::expected<T, scan_error> parse_value_with_format(std::string_view input, std
 }
 
 // Функция для проверки корректности входных данных и выделения из обеих строк интересующих данных для парсинга
-template <typename... Ts>  // !пакет шаблонных параметров в этой ф-ции не используется, вероятно ошибка шаблона проекта
+template <typename... Ts>
+// Примечание: пакет шаблонных параметров был исходно задан в заготовке итогового проекта, но в функции parse_sources не
+// используется. Вероятно это обеспечивает соблюдение ODR (One Definition Rule), т.к. parse_sources определена в .hpp
 std::expected<std::pair<std::vector<std::string_view>, std::vector<std::string_view>>,
               scan_error>  // <тип успешного результата, тип ошибки>
 parse_sources(std::string_view input, std::string_view format) {
