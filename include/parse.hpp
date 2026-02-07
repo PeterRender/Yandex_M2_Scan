@@ -95,13 +95,19 @@ std::expected<T, scan_error> parse_value_with_format(std::string_view input, std
         if (fmt != "" && fmt != "%s") {  // если спецификатор формата не "" и не "%s", то возвращаем ошибку
             return std::unexpected(scan_error{"Invalid format specifier for string type"});
         }
-    } else if constexpr (IntType<T>) {   // этот блок попадает в бинарник только для знакового целочисленного типа
+    } else if constexpr (IntType<T>) {  // этот блок попадает в бинарник только для знакового целочисленного типа
+        if (fmt == "%u") {              // если спецификатор формата для беззнакового целого, то возвращаем ошибку
+            return std::unexpected(scan_error{"Invalid unsigned format specifier for signed type"});
+        }
         if (fmt != "" && fmt != "%d") {  // если спецификатор формата не "" и не "%d", то возвращаем ошибку
-            return std::unexpected(scan_error{"Invalid format specifier for integer type"});
+            return std::unexpected(scan_error{"Invalid format specifier for signed type"});
         }
     } else if constexpr (UIntType<T>) {  // этот блок попадает в бинарник только для беззнакового целочисленного типа
+        if (fmt == "%d") {               // если спецификатор формата для знакового целого, то возвращаем ошибку
+            return std::unexpected(scan_error{"Invalid signed format specifier for unsigned type"});
+        }
         if (fmt != "" && fmt != "%u") {  // если спецификатор формата не "" и не "%u", то возвращаем ошибку
-            return std::unexpected(scan_error{"Invalid format specifier for unsigned integer type"});
+            return std::unexpected(scan_error{"Invalid format specifier for unsigned type"});
         }
     } else if constexpr (FloatType<T> || DoubleType<T>) {  // этот блок попадает в бинарник только для float и double
         if (fmt != "" && fmt != "%f") {  // если спецификатор формата не "" и не "%f", то возвращаем ошибку

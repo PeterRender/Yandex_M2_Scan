@@ -1,42 +1,28 @@
 #include <gtest/gtest.h>
 #include <limits>  // для получения граничных значений с помощью std::numeric_limits
-#include <print>
 
 #include "scan.hpp"
 
-// Тест сканирования корректного случая "одна строка, один пустой спецификатор"
-TEST(ScanTest, ValidSingleString) {
-    auto result = stdx::scan<std::string>("Yandex", "{}");
-    ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(std::get<0>(result.value().values()), "Yandex");
-}
+// Тест сканирования корректных строковых аргументов
+TEST(ScanTest, ValidStringArguments) {
+    // Создаем шаблонную лямбду для тестирования строкового аргумента
+    auto test_str_scan = []<typename T>(const std::string &input, const std::string &format, const T &expected) {
+        // Макрос GTest, указывающий, на каких входных данных падает тест (если он падает)
+        SCOPED_TRACE("Testing type " + std::string(typeid(T).name()) + " with input '" + input + "', format '" +
+                     format + "'");
+        auto result = stdx::scan<T>(input, format);
+        // Должен быть создан результат сканирования
+        ASSERT_TRUE(result.has_value());
+        // Результат сканирования должен совпадать с ожидаемым значением
+        EXPECT_EQ(std::get<0>(result.value().values()), expected);
+    };
 
-// Тест сканирования корректного случая "одна строка, один спецификатор %s"
-TEST(ScanTest, ValidSingleStringAndSpecifier) {
-    auto result = stdx::scan<std::string>("Yandex", "{%s}");
-    ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(std::get<0>(result.value().values()), "Yandex");
-}
-
-// Тест сканирования корректного случая "одна строка в контексте, один пустой спецификатор"
-TEST(ScanTest, ValidStringWithContext) {
-    auto result = stdx::scan<std::string>("Company: Yandex", "Company: {}");
-    ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(std::get<0>(result.value().values()), "Yandex");
-}
-
-// Тест сканирования некорректного случая "одна строка, неправильный спецификатор"
-TEST(ScanTest, InvalidStringSpecifier) {
-    auto result = stdx::scan<std::string>("Yandex", "{%d}");
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().message_, "Invalid format specifier for string type");
-}
-
-// Тест сканирования некорректного случая "2 плейсхолдера, 1 тип"
-TEST(ScanTest, InvalidTypesNumber) {
-    auto result = stdx::scan<std::string>("Yandex Practicum", "{} {}");
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().message_, "Numbers of format specifiers and types are not equal");
+    // Пустой спецификатор для строковых типов в контексте
+    test_str_scan.operator()<std::string>("Company: Yandex", "Company: {}", "Yandex");
+    test_str_scan.operator()<std::string_view>("Company: Yandex", "Company: {}", "Yandex");
+    // Cпецификатор %s для строковых типов в контексте
+    test_str_scan.operator()<std::string>("Company: Yandex", "Company: {%s}", "Yandex");
+    test_str_scan.operator()<std::string_view>("Company: Yandex", "Company: {%s}", "Yandex");
 }
 
 // Тест сканирования граничных значений целых чисел (со знаком и без)
@@ -162,6 +148,54 @@ TEST(ScanTest, InvalidNumberArguments) {
     test_err.operator()<uint8_t>("18446744073709551616", "{%u}", expected_err3);
 }
 
+// Тест для проверки некорректных спецификаторов формата
+TEST(ScanTest, InvalidFormatSpecifiers) {
+    // Создаем шаблонную лямбду для тестирования некорректного спецификатора формата
+    auto test_err = []<typename T>(const std::string &input, const std::string &format, const std::string &err_str) {
+        // Макрос GTest, указывающий, на каких входных данных падает тест (если он падает)
+        SCOPED_TRACE("Testing type " + std::string(typeid(T).name()) + " with input '" + input + "', format '" +
+                     format + "'");
+        auto result = stdx::scan<T>(input, format);
+        // Сканирование не должно дать результат
+        ASSERT_FALSE(result.has_value());
+        // Текст ошибки должен совпадать с ожидаемым
+        EXPECT_EQ(result.error().message_, err_str);
+    };
+
+    // Спецификатор %d для строковых типов
+    const std::string expected_err("Invalid format specifier for string type");  // ожидаемая ошибка
+    test_err.operator()<std::string>("Yandex", "{%d}", expected_err);
+    test_err.operator()<std::string_view>("Yandex", "{%d}", expected_err);
+    // Спецификатор %u для знаковых типов
+    const std::string expected_err1("Invalid unsigned format specifier for signed type");  // ожидаемая ошибка
+    test_err.operator()<int8_t>("-123", "{%u}", expected_err1);
+    test_err.operator()<int16_t>("-123", "{%u}", expected_err1);
+    test_err.operator()<int32_t>("-123", "{%u}", expected_err1);
+    test_err.operator()<int64_t>("-123", "{%u}", expected_err1);
+    // Спецификатор %f для знаковых типов
+    const std::string expected_err2("Invalid format specifier for signed type");  // ожидаемая ошибка
+    test_err.operator()<int8_t>("-123", "{%f}", expected_err2);
+    test_err.operator()<int16_t>("-123", "{%f}", expected_err2);
+    test_err.operator()<int32_t>("-123", "{%f}", expected_err2);
+    test_err.operator()<int64_t>("-123", "{%f}", expected_err2);
+    // Спецификатор %d для беззнаковых типов
+    const std::string expected_err3("Invalid signed format specifier for unsigned type");  // ожидаемая ошибка
+    test_err.operator()<uint8_t>("123", "{%d}", expected_err3);
+    test_err.operator()<uint16_t>("123", "{%d}", expected_err3);
+    test_err.operator()<uint32_t>("123", "{%d}", expected_err3);
+    test_err.operator()<uint64_t>("123", "{%d}", expected_err3);
+    // Спецификатор %f для беззнаковых типов
+    const std::string expected_err4("Invalid format specifier for unsigned type");  // ожидаемая ошибка
+    test_err.operator()<uint8_t>("123", "{%f}", expected_err4);
+    test_err.operator()<uint16_t>("123", "{%f}", expected_err4);
+    test_err.operator()<uint32_t>("123", "{%f}", expected_err4);
+    test_err.operator()<uint64_t>("123", "{%f}", expected_err4);
+    // Спецификатор %s для вещественных типов
+    const std::string expected_err5("Invalid format specifier for floating type");  // ожидаемая ошибка
+    test_err.operator()<float>("3.14", "{%s}", expected_err5);
+    test_err.operator()<double>("3.14", "{%s}", expected_err5);
+}
+
 // Тест сканирования нескольких валидных аргументов различных типов
 TEST(ScanTest, MultipleValidArguments) {
     // Тест 1: целое число и float в контексте (со спецификатором и без)
@@ -194,6 +228,13 @@ TEST(ScanTest, MultipleValidArguments) {
     EXPECT_DOUBLE_EQ(std::get<2>(result4.value().values()), 3.1415926535);
 }
 
+// Тест для проверки несоответствия числа типов числу плейсхолдеров
+TEST(ScanTest, InvalidTypesNumber) {
+    auto result = stdx::scan<std::string>("Yandex Practicum", "{} {}");
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().message_, "Numbers of format specifiers and types are not equal");
+}
+
 // Тест короткосхемности парсинга аргументов
 TEST(ScanTest, ShortCircuitParsing) {
     // Если второй аргумент парсится с ошибкой, то третий не должен парситься
@@ -224,4 +265,43 @@ TEST(ScanTest, ValidCVTypes) {
     ASSERT_TRUE(result3.has_value());
     EXPECT_EQ(std::get<0>(result3.value().values()), "Pi");
     EXPECT_FLOAT_EQ(std::get<1>(result3.value().values()), 3.14f);
+}
+
+// Тест для проверки несоответствия входной и форматной строк
+TEST(ScanTest, DifferentInputFormat) {
+    const std::string expected_err("Unformatted text in input and format string are different");  // ожидаемая ошибка
+
+    // Различие текстов между плейсхолдерами
+    auto result = stdx::scan<uint32_t, uint32_t>("Yandex Practicum 2019 - 2026", "Yandex Practicum {%u} and {%u}");
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().message_, expected_err);
+
+    // Недостаток текста во входной строке
+    auto result2 = stdx::scan<uint32_t, uint32_t>("2019", "{} {}");
+    ASSERT_FALSE(result2.has_value());
+    EXPECT_EQ(result2.error().message_, expected_err);
+}
+
+// Тесты для некоторых краевых случаев и специальных форматов
+TEST(ScanTest, EdgeCases) {
+    // Пустая входная строка (корректно)
+    auto result1 = stdx::scan<std::string>("", "{}");
+    ASSERT_TRUE(result1.has_value());
+    EXPECT_EQ(std::get<0>(result1.value().values()), "");
+
+    // Целые числа с нулями впереди (корректно)
+    auto result2 = stdx::scan<int32_t, uint32_t>("002019 0002026", "{} {}");
+    ASSERT_TRUE(result2.has_value());
+    EXPECT_EQ(std::get<0>(result2.value().values()), 2019);
+    EXPECT_EQ(std::get<1>(result2.value().values()), 2026);
+
+    // Отрицательное число для беззнакового типа (ошибка)
+    auto result3 = stdx::scan<uint32_t>("-123", "{%u}");
+    ASSERT_FALSE(result3.has_value());
+    EXPECT_EQ(result3.error().message_, "Invalid numeric argument");
+
+    // Вещественное число в научной нотации для целого типа (ошибка)
+    auto result4 = stdx::scan<int32_t>("3.14e3", "{%d}");
+    ASSERT_FALSE(result4.has_value());
+    EXPECT_EQ(result4.error().message_, "Extra characters after number");
 }
